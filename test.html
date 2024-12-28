@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title> test</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding-top: 150px; /* Ajuste da margem superior */
+      background-color: #dad4d4;
+      font-family: Arial, sans-serif;
+    }
+
+    .tooltip .xp {
+  font-size: 11px; /* Reduz o tamanho da fonte */
+  color: #26e315; /* Cor do texto */
+  margin-top: 2px; /* Espaço acima do texto */
+  font-weight: 700;
+}
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(30, 1fr); /* 30 quadrados por linha */
+      grid-gap: 2px;
+      margin: 20px 0;
+    }
+
+    .block {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  background-color: #3498db; /* Cor inicial */
+  transition: transform 0.3s ease, background-color 0.3s ease; /* Transições suaves */
+}
+
+.block:hover {
+  transform: scale(1.2); /* Aumenta o tamanho */
+  background-color: #e74c3c; /* Muda a cor */
+}
+
+
+    /* Tooltip styles */
+    .tooltip {
+      display: none;
+      position: absolute;
+      bottom: 100%; /* Posiciona acima do bloco */
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+      white-space: nowrap;
+      max-width: 50px;
+      text-align: center;
+      padding: 2px;
+      margin-bottom: 5px; /* Espaçamento entre o bloco e o tooltip */
+    }
+
+    .block:hover .tooltip {
+      display: block;
+    }
+
+    .tooltip img {
+      width: 50px;
+      height: 50px;
+      border-radius: 5px;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      display: block;
+    }
+
+    .progress {
+      font-size: 12px;
+      margin-top: 5px;
+      color: #555;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .card-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card-preview img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .percentages {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+
+    .card-details {
+      margin-top: 20px;
+      font-size: 16px;
+      padding: 10px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 80%;
+      max-width: 500px;
+    }
+
+    .card-details div {
+      margin-bottom: 10px;
+    }
+
+    /* Barra de progresso */
+    .progress-bar {
+      width: 100%;
+      background-color: #ebedf0;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar .progress-fill {
+      height: 20px;
+      border-radius: 20px;
+    }
+
+    .progress-bar-text {
+      font-size: 14px;
+      text-align: center;
+      margin-top: 5px;
+    }
+
+    /* Estilo para o gráfico de pizza */
+    .pie-chart-container {
+      width: 300px;
+      height: 300px;
+      margin-top: 40px;
+      /* background-color: #cbec12; */
+    }
+  </style>
+</head>
+<body>
+  <div id="filledBlocksCount" class="filled-blocks-count"></div>
+
+  <div class="grid" id="grid"></div>
+  <div class="percentages" id="percentages"></div>
+  <div class="sidebar" id="sidebar"></div>
+
+  <div class="progress-bar-container" id="progressBars"></div>
+
+  <!-- Gráfico de pizza -->
+  <div class="pie-chart-container">
+    <canvas id="nucleusPieChart"></canvas>
+  </div>
+
+  <script>
+const nuclei = {
+    black: { name: "Preto", maxXP: 500, blockValue: 100, lightColor: "#757575", darkColor: "#212121" },
+    red: { name: "Vermelho", maxXP: 1000, blockValue: 200, lightColor: "#e57373", darkColor: "#d32f2f" },
+    orange: { name: "Laranja", maxXP: 1200, blockValue: 300, lightColor: "#ffb74d", darkColor: "#f57c00" },
+    yellow: { name: "Amarelo", maxXP: 2000, blockValue: 400, lightColor: "#fff176", darkColor: "#fbc02d" },
+    silver: { name: "Prata", maxXP: 5000, blockValue: 500, lightColor: "#b0bec5", darkColor: "#78909c" },
+    green: { name: "Verde Brilhoso", maxXP: 6000, blockValue: 600, lightColor: "#81c784", darkColor: "#388e3c" },
+    purple: { name: "Roxo", maxXP: 7000, blockValue: 700, lightColor: "#ba68c8", darkColor: "#8e24aa" },
+    gold: { name: "Dourado", maxXP: 10000, blockValue: 1000, lightColor: "#ffd54f", darkColor: "#fbc02d" }
+};
+
+
+
+  let cards = [
+ 
+  
+   
+  { name: 'Carta 1', xp: 100, nucleus: 'black', image: 'img/card1.jpg', parts: 1 },
+    { name: 'Carta 1', xp: 100, nucleus: 'black', image: 'img/card1.jpg', parts: 2 },
+    { name: 'Carta 1', xp: 100, nucleus: 'black', image: 'img/card1.jpg', parts: 3 },
+    { name: 'Carta 1', xp: 100, nucleus: 'black', image: 'img/card1.jpg', parts: 4 },
+    { name: 'Carta 1', xp: 100, nucleus: 'black', image: 'img/card1.jpg', parts: 5 },
+
+    // Carta 2 com 5 partes
+    { name: 'Carta 2', xp: 200, nucleus: 'red', image: 'img/card2.jpg', parts: 1 },
+    { name: 'Carta 2', xp: 200, nucleus: 'red', image: 'img/card2.jpg', parts: 2 },
+    { name: 'Carta 2', xp: 200, nucleus: 'red', image: 'img/card2.jpg', parts: 3 },
+    { name: 'Carta 2', xp: 200, nucleus: 'red', image: 'img/card2.jpg', parts: 4 },
+    { name: 'Carta 2', xp: 200, nucleus: 'red', image: 'img/card2.jpg', parts: 5 },
+
+    // Carta 3 com 5 partes
+    { name: 'Carta 3', xp: 300, nucleus: 'orange', image: 'img/card3.jpg', parts: 1 },
+    { name: 'Carta 3', xp: 300, nucleus: 'orange', image: 'img/card3.jpg', parts: 2 },
+    { name: 'Carta 3', xp: 300, nucleus: 'orange', image: 'img/card3.jpg', parts: 3 },
+    { name: 'Carta 3', xp: 300, nucleus: 'orange', image: 'img/card3.jpg', parts: 4 },
+    { name: 'Carta 3', xp: 300, nucleus: 'orange', image: 'img/card3.jpg', parts: 5 },
+
+    // Carta 4 com 5 partes
+    { name: 'Carta 4', xp: 400, nucleus: 'yellow', image: 'img/card4.jpg', parts: 1 },
+    { name: 'Carta 4', xp: 400, nucleus: 'yellow', image: 'img/card4.jpg', parts: 2 },
+    { name: 'Carta 4', xp: 400, nucleus: 'yellow', image: 'img/card4.jpg', parts: 3 },
+    { name: 'Carta 4', xp: 400, nucleus: 'yellow', image: 'img/card4.jpg', parts: 4 },
+    { name: 'Carta 4', xp: 400, nucleus: 'yellow', image: 'img/card4.jpg', parts: 5 },
+
+    // Carta 5 com 5 partes
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 1 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 2 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 3 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 4 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 5 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 6 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 7 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 8 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 9 },
+    { name: 'Carta 5', xp: 500, nucleus: 'silver', image: 'img/card5.jpg', parts: 10 },
+
+
+    // Carta 6 com 10 partes
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 1 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 2 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 3 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 4 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 5 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 6 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 7 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 8 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 9 },
+    { name: 'Carta 6', xp: 600, nucleus: 'green', image: 'img/card6.jpg', parts: 10 },
+
+    // Carta 7 com 10 partes
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 1 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 2 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 3 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 4 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 5 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 6 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 7 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 8 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 9 },
+    { name: 'Carta 7', xp: 700, nucleus: 'purple', image: 'img/card7.jpg', parts: 10 },
+
+    // Carta 8 com 10 partes
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 1 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 2 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 3 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 4 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 5 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 6 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 7 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 8 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 9 },
+    { name: 'Carta 8', xp: 800, nucleus: 'gold', image: 'img/card8.jpg', parts: 10 },
+
+    // Carta 9 com 5 partes
+    { name: 'Carta 9', xp: 100, nucleus: 'black', image: 'img/card9.jpg', parts: 1 },
+    { name: 'Carta 9', xp: 100, nucleus: 'black', image: 'img/card9.jpg', parts: 2 },
+    { name: 'Carta 9', xp: 100, nucleus: 'black', image: 'img/card9.jpg', parts: 3 },
+    { name: 'Carta 9', xp: 100, nucleus: 'black', image: 'img/card9.jpg', parts: 4 },
+    { name: 'Carta 9', xp: 100, nucleus: 'black', image: 'img/card9.jpg', parts: 5 },
+
+      // Carta 10 com 5 partes
+      { name: 'Carta 10', xp: 200, nucleus: 'red', image: 'img/card10.jpg', parts: 1 },
+    { name: 'Carta 10', xp: 200, nucleus: 'red', image: 'img/card10.jpg', parts: 2 },
+    { name: 'Carta 10', xp: 200, nucleus: 'red', image: 'img/card10.jpg', parts: 3 },
+    { name: 'Carta 10', xp: 200, nucleus: 'red', image: 'img/card10.jpg', parts: 4 },
+    { name: 'Carta 10', xp: 200, nucleus: 'red', image: 'img/card10.jpg', parts: 5 },
+
+    // Carta 11 com 5 partes
+    { name: 'Carta 11', xp: 300, nucleus: 'orange', image: 'img/card11.jpg', parts: 1 },
+    { name: 'Carta 11', xp: 300, nucleus: 'orange', image: 'img/card11.jpg', parts: 2 },
+    { name: 'Carta 11', xp: 300, nucleus: 'orange', image: 'img/card11.jpg', parts: 3 },
+    { name: 'Carta 11', xp: 300, nucleus: 'orange', image: 'img/card11.jpg', parts: 4 },
+    { name: 'Carta 11', xp: 300, nucleus: 'orange', image: 'img/card11.jpg', parts: 5 },
+
+    // Carta 12 com 5 partes
+    { name: 'Carta 12', xp: 400, nucleus: 'yellow', image: 'img/card12.jpg', parts: 1 },
+    { name: 'Carta 12', xp: 400, nucleus: 'yellow', image: 'img/card12.jpg', parts: 2 },
+    { name: 'Carta 12', xp: 400, nucleus: 'yellow', image: 'img/card12.jpg', parts: 3 },
+    { name: 'Carta 12', xp: 400, nucleus: 'yellow', image: 'img/card12.jpg', parts: 4 },
+    { name: 'Carta 12', xp: 400, nucleus: 'yellow', image: 'img/card12.jpg', parts: 5 },
+
+    // Carta 13 com 10 partes
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 1 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 2 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 3 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 4 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 5 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 6 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 7 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 8 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 9 },
+    { name: 'Carta 13', xp: 500, nucleus: 'silver', image: 'img/card13.jpg', parts: 10 },
+
+    // Carta 14 com 10 partes
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 1 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 2 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 3 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 4 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 5 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 6 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 7 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 8 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 9 },
+    { name: 'Carta 14', xp: 600, nucleus: 'green', image: 'img/card14.jpg', parts: 10 },
+
+    // Carta 15 com 5 partes
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 1 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 2 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 3 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 4 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 5 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 6 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 7 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 8 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 8 },
+    { name: 'Carta 15', xp: 700, nucleus: 'purple', image: 'img/card15.jpg', parts: 10 },
+
+
+    // Carta 16 com 5 partes
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 1 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 2 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 3 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 4 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 5 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 6 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 7 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 8 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 9 },
+    { name: 'Carta 16', xp: 800, nucleus: 'gold', image: 'img/card16.jpg', parts: 10},
+
+
+    // Carta 17 com 5 partes
+    { name: 'Carta 17', xp: 100, nucleus: 'black', image: 'img/card17.jpg', parts: 1 },
+    { name: 'Carta 17', xp: 100, nucleus: 'black', image: 'img/card17.jpg', parts: 2 },
+    { name: 'Carta 17', xp: 100, nucleus: 'black', image: 'img/card17.jpg', parts: 3 },
+    { name: 'Carta 17', xp: 100, nucleus: 'black', image: 'img/card17.jpg', parts: 4 },
+    { name: 'Carta 17', xp: 100, nucleus: 'black', image: 'img/card17.jpg', parts: 5 },
+
+    // Carta 18 com 5 partes
+    { name: 'Carta 18', xp: 200, nucleus: 'red', image: 'img/card18.jpg', parts: 1 },
+    { name: 'Carta 18', xp: 200, nucleus: 'red', image: 'img/card18.jpg', parts: 2 },
+    { name: 'Carta 18', xp: 200, nucleus: 'red', image: 'img/card18.jpg', parts: 3 },
+    { name: 'Carta 18', xp: 200, nucleus: 'red', image: 'img/card18.jpg', parts: 4 },
+    { name: 'Carta 18', xp: 200, nucleus: 'red', image: 'img/card18.jpg', parts: 5 },
+
+      // Carta 19 com 5 partes
+      { name: 'Carta 19', xp: 300, nucleus: 'orange', image: 'img/card19.jpg', parts: 1 },
+    { name: 'Carta 19', xp: 300, nucleus: 'orange', image: 'img/card19.jpg', parts: 2 },
+    { name: 'Carta 19', xp: 300, nucleus: 'orange', image: 'img/card19.jpg', parts: 3 },
+    { name: 'Carta 19', xp: 300, nucleus: 'orange', image: 'img/card19.jpg', parts: 4 },
+    { name: 'Carta 19', xp: 300, nucleus: 'orange', image: 'img/card19.jpg', parts: 5 },
+
+    // Carta 20 com 10 partes
+    { name: 'Carta 20', xp: 400, nucleus: 'yellow', image: 'img/card20.jpg', parts: 1 },
+    { name: 'Carta 20', xp: 400, nucleus: 'yellow', image: 'img/card20.jpg', parts: 2 },
+    { name: 'Carta 20', xp: 400, nucleus: 'yellow', image: 'img/card20.jpg', parts: 3 },
+    { name: 'Carta 20', xp: 400, nucleus: 'yellow', image: 'img/card20.jpg', parts: 4 },
+    { name: 'Carta 20', xp: 400, nucleus: 'yellow', image: 'img/card20.jpg', parts: 5 },
+
+    // Carta 21 com 5 partes
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 1 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 2 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 3 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 4 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 5 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 6 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 7 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 8 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 9 },
+    { name: 'Carta 21', xp: 500, nucleus: 'silver', image: 'img/card21.jpg', parts: 10 },
+
+
+    // Carta 22 com 10 partes
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 1 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 2 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 3 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 4 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 5 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 6 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 7 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 8 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 9 },
+    { name: 'Carta 22', xp: 600, nucleus: 'green', image: 'img/card22.jpg', parts: 10 },
+
+    // Carta 23 com 5 partes
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 1 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 2 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 3 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 4 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 5 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 6 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 7 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 8 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 9 },
+    { name: 'Carta 23', xp: 700, nucleus: 'purple', image: 'img/card23.jpg', parts: 10 },
+
+
+    // Carta 24 com 5 partes
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 1 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 2 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 3 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 4 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 5 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 6 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 7 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 8 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 9 },
+    { name: 'Carta 24', xp: 800, nucleus: 'gold', image: 'img/card24.jpg', parts: 10 },
+
+
+    // Carta 25 com 5 partes
+    { name: 'Carta 25', xp: 100, nucleus: 'black', image: 'img/card25.jpg', parts: 1 },
+    { name: 'Carta 25', xp: 100, nucleus: 'black', image: 'img/card25.jpg', parts: 2 },
+    { name: 'Carta 25', xp: 100, nucleus: 'black', image: 'img/card25.jpg', parts: 3 },
+    { name: 'Carta 25', xp: 100, nucleus: 'black', image: 'img/card25.jpg', parts: 4 },
+    { name: 'Carta 25', xp: 100, nucleus: 'black', image: 'img/card25.jpg', parts: 5 },
+
+    // Carta 26 com 10 partes
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 1 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 2 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 3 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 4 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 5 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 6 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 7 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 8 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 9 },
+    { name: 'Carta 26', xp: 200, nucleus: 'red', image: 'img/card26.jpg', parts: 10 },
+
+    // Carta 27 com 5 partes
+    { name: 'Carta 27', xp: 300, nucleus: 'orange', image: 'img/card27.jpg', parts: 1 },
+    { name: 'Carta 27', xp: 300, nucleus: 'orange', image: 'img/card27.jpg', parts: 2 },
+    { name: 'Carta 27', xp: 300, nucleus: 'orange', image: 'img/card27.jpg', parts: 3 },
+    { name: 'Carta 27', xp: 300, nucleus: 'orange', image: 'img/card27.jpg', parts: 4 },
+    { name: 'Carta 27', xp: 300, nucleus: 'orange', image: 'img/card27.jpg', parts: 5 },
+
+    // Carta 28 com 5 partes
+    { name: 'Carta 28', xp: 400, nucleus: 'yellow', image: 'img/card28.jpg', parts: 1 },
+    { name: 'Carta 28', xp: 400, nucleus: 'yellow', image: 'img/card28.jpg', parts: 2 },
+    { name: 'Carta 28', xp: 400, nucleus: 'yellow', image: 'img/card28.jpg', parts: 3 },
+    { name: 'Carta 28', xp: 400, nucleus: 'yellow', image: 'img/card28.jpg', parts: 4 },
+    { name: 'Carta 28', xp: 400, nucleus: 'yellow', image: 'img/card28.jpg', parts: 5 },
+
+    // Carta 29 com 10 partes
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 1 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 2 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 3 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 4 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 5 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 6 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 7 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 8 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 9 },
+    { name: 'Carta 29', xp: 500, nucleus: 'silver', image: 'img/card29.jpg', parts: 10 },
+
+    // Carta 30 com 10 partes
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 1 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 2 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 3 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 4 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 5 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 6 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 7 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 8 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 9 },
+    { name: 'Carta 30', xp: 600, nucleus: 'green', image: 'img/card30.jpg', parts: 10 },
+    
+];
+
+
+  // Embaralhando as cartas
+  cards.sort(() => Math.random() - 0.5);
+
+  const cardProgress = {};
+  const nucleusXP = {
+    black: 0, red: 0, orange: 0, yellow: 0, silver: 0, green: 0, purple: 0, gold: 0
+  };
+ 
+  function getColorForXP(xp, nucleus, parts) {
+  const nucleusData = nuclei[nucleus]; // Dados do núcleo
+  const totalParts = ['silver', 'green', 'purple', 'gold'].includes(nucleus) ? 10 : 5; // Determina o total de partes
+  const percentage = xp / nucleusData.maxXP; // Progresso percentual
+  const gradationIndex = Math.floor(percentage * (totalParts - 1)); // Índice de gradiente
+
+  // Função para interpolar entre duas cores
+  const interpolateColor = (color1, color2, factor) => {
+    const r1 = parseInt(color1.slice(1, 3), 16);
+    const g1 = parseInt(color1.slice(3, 5), 16);
+    const b1 = parseInt(color1.slice(5, 7), 16);
+
+    const r2 = parseInt(color2.slice(1, 3), 16);
+    const g2 = parseInt(color2.slice(3, 5), 16);
+    const b2 = parseInt(color2.slice(5, 7), 16);
+
+    const r = Math.floor(r1 + (r2 - r1) * factor);
+    const g = Math.floor(g1 + (g2 - g1) * factor);
+    const b = Math.floor(b1 + (b2 - b1) * factor);
+
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
+  // Ajusta a cor com base na parte
+  const factor = parts / totalParts; // Fator ajustado com base na parte
+  const color = interpolateColor(nucleusData.darkColor, nucleusData.lightColor, factor);
+
+  return color;
+}
+
+
+function renderCards() {
+  const gridElement = document.getElementById('grid');
+  gridElement.innerHTML = ''; // Limpa os blocos existentes na grid 
+
+  // Para cada carta, calcular o percentual com base nas partes
+  let blockCount = 0;
+
+// Para cada carta, calcular o percentual com base nas partes
+cards.forEach((card) => {
+  const nucleusData = nuclei[card.nucleus];
+  const totalParts = ['silver', 'green', 'purple', 'gold'].includes(card.nucleus) ? 10 : 5; // Determina o total de partes
+  const progress = (card.parts / totalParts) * 100; // Calcular o progresso com base nas partes
+
+  const blockValue = nucleusData.blockValue;
+
+  if (!cardProgress[card.name]) {
+    cardProgress[card.name] = 0;
+  }
+
+  let xpLeft = card.xp + cardProgress[card.name];
+
+  const block = document.createElement('div');
+  block.className = 'block';
+  block.style.backgroundColor = getColorForXP(xpLeft, card.nucleus, card.parts); // Usa a função modificada
+
+  const tooltip = document.createElement('div');
+  tooltip.className = 'tooltip';
+
+  const img = document.createElement('img');
+  img.src = card.image;
+  img.alt = card.name;
+  tooltip.appendChild(img);
+
+  // Adiciona a porcentagem no tooltip
+  const progressText = document.createElement('div');
+  progressText.className = 'progress';
+  progressText.textContent = `${progress.toFixed(2)}%`;
+  tooltip.appendChild(progressText);
+
+  // Exibe o XP fornecido pelo bloco no tooltip
+  const xpText = document.createElement('div');
+  xpText.className = 'xp';
+  xpText.textContent = `+${blockValue} XP`; // Exibe o valor do XP que o bloco está fornecendo
+  tooltip.appendChild(xpText);
+
+  block.appendChild(tooltip);
+  gridElement.appendChild(block);
+
+  xpLeft -= blockValue;
+  cardProgress[card.name] += blockValue;
+  nucleusXP[card.nucleus] += blockValue;
+
+  blockCount++;
+});
+
+// Preencher os blocos restantes com cinza até 300
+while (blockCount < 300) {
+  const block = document.createElement('div');
+  block.className = 'block';
+  block.style.backgroundColor = '#ebedf0';
+  gridElement.appendChild(block);
+  blockCount++;
+}
+
+
+  renderProgressBars();
+}
+
+  function renderProgressBars() {
+    const progressBarsElement = document.getElementById('progressBars');
+    progressBarsElement.innerHTML = ''; // Limpa as barras de progresso existentes
+
+    for (const nucleus in nucleusXP) {
+      const totalXP = nucleusXP[nucleus];
+      const nucleusData = nuclei[nucleus];
+      const percentage = (totalXP / nucleusData.maxXP) * 100;
+
+      const progressBarContainer = document.createElement('div');
+  
+
+      progressBarContainer.appendChild(progressBarText);
+      progressBarsElement.appendChild(progressBarContainer);
+    }
+  }
+
+  function renderPieChart() {
+    const ctx = document.getElementById('nucleusPieChart').getContext('2d');
+    const data = {
+      labels: Object.values(nuclei).map(nucleus => nucleus.name),
+      datasets: [{
+        label: 'Distribuição de Núcleos',
+        data: Object.values(nucleusXP),
+        backgroundColor: Object.values(nuclei).map(nucleus => nucleus.lightColor),
+        borderColor: Object.values(nuclei).map(nucleus => nucleus.darkColor),
+        borderWidth: 1
+      }]
+    };
+
+    new Chart(ctx, {
+      type: 'pie',
+      data: data
+    });
+  }
+
+  renderCards();
+  </script>
+</body>
+</html>
